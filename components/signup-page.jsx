@@ -1,9 +1,12 @@
 "use client"
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useActionState } from "react";
 import { Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { registerSchema } from "@/lib/Schema/userSchema";
+import { registerUser } from "@/app/actions/userAction";
+import z from "zod";
 
 // Helper function to merge class names
 const cn = (...classes) => {
@@ -248,32 +251,37 @@ const DotMap = () => {
 
 
 const SignUpPage = () => {
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [fullname, setFullname] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isHovered, setIsHovered] = useState(false);
   const router = useRouter()
-  
-  
- const userRegister = async (data) => {
-  const response = await fetch("/api/register", {
-    method : 'POST',
-    body : JSON.stringify(data)
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [fullname, setFullname] = useState("Deepak");
+  const [email, setEmail] = useState("deepak@gmail.com");
+  const [password, setPassword] = useState("123TGV67884js");
+  const [isHovered, setIsHovered] = useState(false);
+  const [errors, setErrors] = useState({
   })
-  const responseData = await response.json()
-  if(response.status === 409){
-    console.log(responseData)
-  }
 
-  if(!responseData.error){
-    return router.push("/login")
-  }
- }
+  
+  const [state, formAction, isPending] = useActionState(registerUser, {});  
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    userRegister({fullname, email, password})
+  console.log(state)
+
+  useEffect(() => {
+    if(state.success){
+      router.push("/login")
+    }else{
+      setErrors(state.errors)
+    }
+  }, [state])
+
+  const handleSubmit = () => {
+    const {success, error, data} = registerSchema.safeParse({fullname, email, password})
+
+    if(!success){
+      return setErrors(z.flattenError(error).fieldErrors)
+    }
+
+    setErrors({})
+    return formAction(data)
  }
 
   return (
@@ -369,7 +377,7 @@ const SignUpPage = () => {
               </div>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4 ">
+            <form action={handleSubmit} className="space-y-4" noValidate>
               <div>
                 <label htmlFor="fullname" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Full Name <span className="text-blue-500">*</span>
@@ -383,6 +391,7 @@ const SignUpPage = () => {
                   required
                   className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full focus:border-blue-500 dark:border-gray-500 focus:ring-blue-500 "
                 />
+                <p className="text-xs text-red-500 ml-1">{errors?.fullname}</p>
               </div>
 
               <div>
@@ -398,6 +407,7 @@ const SignUpPage = () => {
                   required
                   className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full focus:border-blue-500 dark:border-gray-500 focus:ring-blue-500"
                 />
+                <p className="text-xs text-red-500 ml-1">{errors?.email}</p>
               </div>
               
               <div>
@@ -414,6 +424,7 @@ const SignUpPage = () => {
                     required
                     className="bg-gray-50 border-gray-200 dark:border-gray-500 placeholder:text-gray-400 text-gray-800 w-full pr-10 focus:border-blue-500 focus:ring-blue-500"
                   />
+                  <p className="text-xs text-red-500 ml-1">{errors?.password}</p>
                   <button
                     type="button"
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
